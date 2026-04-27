@@ -1,52 +1,63 @@
-import { randomUUID } from 'crypto';
+import { nanoid } from 'nanoid';
 
 export interface Bookmark {
   id: string;
-  url: string;
   title: string;
+  url: string;
   description?: string;
   tags: string[];
-  favicon?: string;
+  collectionId?: string;
   createdAt: Date;
   updatedAt: Date;
 }
 
-export type CreateBookmarkInput = Omit<Bookmark, 'id' | 'createdAt' | 'updatedAt'>;
-export type UpdateBookmarkInput = Partial<Omit<Bookmark, 'id' | 'createdAt'>>;
+export interface CreateBookmarkInput {
+  title: string;
+  url: string;
+  description?: string;
+  tags?: string[];
+  collectionId?: string;
+}
+
+export interface UpdateBookmarkInput {
+  title?: string;
+  url?: string;
+  description?: string;
+  tags?: string[];
+  collectionId?: string;
+}
 
 export function createBookmark(input: CreateBookmarkInput): Bookmark {
-  if (!input.url || !input.url.trim()) {
-    throw new Error('Bookmark URL is required');
-  }
-  if (!input.title || !input.title.trim()) {
-    throw new Error('Bookmark title is required');
-  }
-
   const now = new Date();
   return {
-    id: randomUUID(),
-    url: input.url.trim(),
+    id: nanoid(),
     title: input.title.trim(),
+    url: input.url.trim(),
     description: input.description?.trim(),
-    tags: input.tags.map((t) => t.toLowerCase().trim()).filter(Boolean),
-    favicon: input.favicon,
+    tags: input.tags ?? [],
+    collectionId: input.collectionId,
     createdAt: now,
     updatedAt: now,
   };
 }
 
-export function updateBookmark(bookmark: Bookmark, input: UpdateBookmarkInput): Bookmark {
-  const tags = input.tags
-    ? input.tags.map((t) => t.toLowerCase().trim()).filter(Boolean)
-    : bookmark.tags;
-
+export function updateBookmark(
+  bookmark: Bookmark,
+  input: UpdateBookmarkInput
+): Bookmark {
   return {
     ...bookmark,
-    url: input.url?.trim() ?? bookmark.url,
-    title: input.title?.trim() ?? bookmark.title,
-    description: input.description !== undefined ? input.description?.trim() : bookmark.description,
-    tags,
-    favicon: input.favicon !== undefined ? input.favicon : bookmark.favicon,
+    title: input.title !== undefined ? input.title.trim() : bookmark.title,
+    url: input.url !== undefined ? input.url.trim() : bookmark.url,
+    description:
+      input.description !== undefined
+        ? input.description.trim()
+        : bookmark.description,
+    tags: input.tags !== undefined ? input.tags : bookmark.tags,
+    collectionId:
+      input.collectionId !== undefined
+        ? input.collectionId
+        : bookmark.collectionId,
     updatedAt: new Date(),
   };
 }
