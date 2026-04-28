@@ -8,6 +8,7 @@ export interface BookmarkStore {
   update(id: string, data: Partial<Omit<Bookmark, 'id' | 'createdAt'>>): Bookmark | undefined;
   remove(id: string): boolean;
   search(query: string): Bookmark[];
+  count(): number;
 }
 
 export function createInMemoryBookmarkStore(): BookmarkStore {
@@ -56,5 +57,10 @@ export function createInMemoryBookmarkStore(): BookmarkStore {
     );
   }
 
-  return { add, getById, getAll, getByTag, update, remove, search };
+  /** Returns the total number of bookmarks in the store. */
+  function count(): number {
+    return store.size;
+  }
+
+  return { add, getById, getAll, getByTag, update, remove, search, count };
 }
