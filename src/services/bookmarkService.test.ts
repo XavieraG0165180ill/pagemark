@@ -79,4 +79,12 @@ describe("bookmarkService", () => {
     expect(results).toHaveLength(1);
     expect(results[0].title).toBe("TypeScript Docs");
   });
+
+  it("returns all bookmarks when query is empty", async () => {
+    const { service } = buildService();
+    await service.add({ url: "https://typescript.org", title: "TypeScript Docs" });
+    await service.add({ url: "https://rust-lang.org", title: "Rust Lang" });
+    const results = await service.search("");
+    expect(results).toHaveLength(2);
+  });
 });
