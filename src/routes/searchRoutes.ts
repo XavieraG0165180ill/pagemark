@@ -1,40 +1,35 @@
-import { Router, Request, Response } from "express";
+import { FastifyInstance, FastifyPluginAsync } from "fastify";
 import { createSearchService } from "../services/searchService";
-import { createInMemoryBookmarkStore } from "../store/bookmarkStore";
-import { createInMemorySearchStore } from "../store/searchStore";
+
+type SearchService = ReturnType<typeof createSearchService>;
+
+interface SearchQuery {
+  q?: string;
+  tags?: string;
+}
 
 export function createSearchRouter(
-  bookmarkStore: ReturnType<typeof createInMemoryBookmarkStore>,
-  searchStore: ReturnType<typeof createInMemorySearchStore>
-): Router {
-  const router = Router();
-  const searchService = createSearchService(bookmarkStore, searchStore);
+  searchService: SearchService
+): FastifyPluginAsync {
+  return async function (app: FastifyInstance) {
+    app.get<{ Querystring: SearchQuery }>("/search", async (request, reply) => {
+      const { q, tags } = request.query;
 
-  router.get("/", async (req: Request, res: Response) => {
-    try {
-      const q = typeof req.query.q === "string" ? req.query.q : undefined;
-      const tags =
-        typeof req.query.tags === "string"
-          ? req.query.tags.split(",").map((t) => t.trim()).filter(Boolean)
-          : Array.isArray(req.query.tags)
-          ? (req.query.tags as string[])
-          : [];
-      const page = req.query.page ? parseInt(req.query.page as string, 10) : 1;
-      const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 20;
-
-      if (isNaN(page) || page < 1) {
-        return res.status(400).json({ error: "Invalid page parameter" });
-      }
-      if (isNaN(limit) || limit < 1 || limit > 100) {
-        return res.status(400).json({ error: "Invalid limit parameter (1-100)" });
+      if (q === undefined) {
+        return reply.status(400).send({ error: "Missing required query parameter: q" });
       }
 
-      const result = await searchService.search({ q, tags, page, limit });
-      res.json(result);
-    } catch (err) {
-      res.status(500).json({ error: "Search failed" });
-    }
-  });
+      const tagList = tags
+        ? tags.split(",").map((t) => t.trim()).filter(Boolean)
+        : [];
 
-  return router;
+      try {
+        const results = await searchService.search({ query: q, tags: tagList });
+        return reply.status(200).send(results);
+      } catch (err) {
+        request.log.error(err);
+        return reply.status(500).send({ error: "Search failed" });
+      }
+    });
+  };
 }
