@@ -2,17 +2,17 @@ import { BookmarkStore } from "../store/bookmarkStore";
 import { TagStore } from "../store/tagStore";
 import { CollectionStore } from "../store/collectionStore";
 
-export interface BookmarkStats {
+export interface SiteStats {
   totalBookmarks: number;
   totalTags: number;
   totalCollections: number;
-  topTags: Array<{ slug: string; name: string; count: number }>;
+  topTags: Array<{ slug: string; label: string; count: number }>;
   recentBookmarks: Array<{ id: string; title: string; url: string; createdAt: string }>;
   bookmarksPerDay: Record<string, number>;
 }
 
 export interface StatsService {
-  getStats(): Promise<BookmarkStats>;
+  getSiteStats(): Promise<SiteStats>;
 }
 
 export function createStatsService(
@@ -20,38 +20,38 @@ export function createStatsService(
   tagStore: TagStore,
   collectionStore: CollectionStore
 ): StatsService {
-  async function getStats(): Promise<BookmarkStats> {
-    const [bookmarks, tags, collections] = await Promise.all([
+  async function getSiteStats(): Promise<SiteStats> {
+    const [allBookmarks, allTags, allCollections] = await Promise.all([
       bookmarkStore.getAll(),
       tagStore.getAll(),
       collectionStore.getAll(),
     ]);
 
-    const topTags = [...tags]
+    const topTags = [...allTags]
       .sort((a, b) => b.count - a.count)
       .slice(0, 10)
-      .map(({ slug, name, count }) => ({ slug, name, count }));
+      .map(({ slug, label, count }) => ({ slug, label, count }));
 
-    const recentBookmarks = [...bookmarks]
+    const recentBookmarks = [...allBookmarks]
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .slice(0, 5)
       .map(({ id, title, url, createdAt }) => ({ id, title, url, createdAt }));
 
     const bookmarksPerDay: Record<string, number> = {};
-    for (const bookmark of bookmarks) {
+    for (const bookmark of allBookmarks) {
       const day = bookmark.createdAt.slice(0, 10);
       bookmarksPerDay[day] = (bookmarksPerDay[day] ?? 0) + 1;
     }
 
     return {
-      totalBookmarks: bookmarks.length,
-      totalTags: tags.length,
-      totalCollections: collections.length,
+      totalBookmarks: allBookmarks.length,
+      totalTags: allTags.length,
+      totalCollections: allCollections.length,
       topTags,
       recentBookmarks,
       bookmarksPerDay,
     };
   }
 
-  return { getStats };
+  return { getSiteStats };
 }
