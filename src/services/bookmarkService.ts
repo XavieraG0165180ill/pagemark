@@ -39,7 +39,12 @@ export function createBookmarkService(
     async update(id, input) {
       const existing = await bookmarkStore.getById(id);
       if (!existing) return null;
-      const updated = updateBookmark(existing, input);
+
+      const normalizedInput = input.tags !== undefined
+        ? { ...input, tags: normalizeTags(input.tags) }
+        : input;
+
+      const updated = updateBookmark(existing, normalizedInput);
       await bookmarkStore.update(updated);
       await searchStore.index(updated);
       return updated;
