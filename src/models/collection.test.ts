@@ -80,6 +80,13 @@ describe("updateCollection", () => {
     expect(updated.id).toBe("test-id");
     expect(updated.name).toBe("Original Name");
   });
+
+  it("updates updatedAt timestamp", () => {
+    const updated = updateCollection(collection, { description: "Changed" });
+    expect(updated.updatedAt.getTime()).toBeGreaterThanOrEqual(
+      collection.updatedAt.getTime()
+    );
+  });
 });
 
 describe("addBookmarkToCollection", () => {
@@ -99,17 +106,25 @@ describe("addBookmarkToCollection", () => {
 
 describe("removeBookmarkFromCollection", () => {
   it("removes a bookmark id", () => {
-    let col = createCollection({ name: "Test" });
-    col = addBookmarkToCollection(col, "bm-1");
-    col = addBookmarkToCollection(col, "bm-2");
-    const updated = removeBookmarkFromCollection(col, "bm-1");
+    const col = createCollection({ name: "Test" });
+    const withBookmark = addBookmarkToCollection(col, "bm-1");
+    const updated = removeBookmarkFromCollection(withBookmark, "bm-1");
     expect(updated.bookmarkIds).not.toContain("bm-1");
-    expect(updated.bookmarkIds).toContain("bm-2");
   });
 
-  it("returns unchanged collection if id not present", () => {
+  it("does nothing when bookmark id is not present", () => {
     const col = createCollection({ name: "Test" });
-    const updated = removeBookmarkFromCollection(col, "nonexistent");
+    const updated = removeBookmarkFromCollection(col, "bm-99");
     expect(updated.bookmarkIds).toEqual([]);
+  });
+
+  it("only removes the specified bookmark id", () => {
+    const col = createCollection({ name: "Test" });
+    const withBookmarks = addBookmarkToCollection(
+      addBookmarkToCollection(col, "bm-1"),
+      "bm-2"
+    );
+    const updated = removeBookmarkFromCollection(withBookmarks, "bm-1");
+    expect(updated.bookmarkIds).toEqual(["bm-2"]);
   });
 });
