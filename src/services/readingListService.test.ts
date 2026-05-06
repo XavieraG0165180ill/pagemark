@@ -1,79 +1,63 @@
-import { describe, it, expect, beforeEach } from "vitest";
-import {
-  createInMemoryReadingListStore,
-  createReadingListService,
-  ReadingListService,
-} from "./readingListService";
-import { Bookmark } from "../models/bookmark";
+import { createInMemoryReadingListStore, createReadingListService } from './readingListService';
+import { createBookmark } from '../models/bookmark';
 
-const mockBookmark: Bookmark = {
-  id: "bm1",
-  url: "https://example.com",
-  title: "Example",
-  tags: [],
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
-};
-
-function buildService(bookmarks: Bookmark[] = [mockBookmark]): ReadingListService {
+function buildService() {
   const store = createInMemoryReadingListStore();
-  const getById = async (id: string) => bookmarks.find((b) => b.id === id);
-  return createReadingListService(store, getById);
+  const service = createReadingListService(store);
+  return { store, service };
 }
 
-describe("readingListService", () => {
-  let service: ReadingListService;
+const sampleBookmark = createBookmark({
+  url: 'https://example.com',
+  title: 'Example',
+  tags: [],
+});
 
-  beforeEach(() => {
-    service = buildService();
+describe('readingListService', () => {
+  it('adds a bookmark to the reading list', async () => {
+    const { service } = buildService();
+    const entry = await service.add(sampleBookmark.id, sampleBookmark.url, sampleBookmark.title);
+    expect(entry.bookmarkId).toBe(sampleBookmark.id);
+    expect(entry.read).toBe(false);
   });
 
-  it("adds a bookmark to the reading list", async () => {
-    const entry = await service.addToList("bm1");
-    expect(entry.bookmarkId).toBe("bm1");
-    expect(entry.addedAt).toBeDefined();
-    expect(entry.readAt).toBeUndefined();
+  it('returns all reading list entries', async () => {
+    const { service } = buildService();
+    await service.add('id1', 'https://a.com', 'A');
+    await service.add('id2', 'https://b.com', 'B');
+    const all = await service.getAll();
+    expect(all).toHaveLength(2);
   });
 
-  it("returns existing entry when adding duplicate", async () => {
-    const first = await service.addToList("bm1");
-    const second = await service.addToList("bm1");
-    expect(first.addedAt).toBe(second.addedAt);
+  it('marks an entry as read', async () => {
+    const { service } = buildService();
+    const entry = await service.add(sampleBookmark.id, sampleBookmark.url, sampleBookmark.title);
+    const updated = await service.markAsRead(entry.id);
+    expect(updated?.read).toBe(true);
+    expect(updated?.readAt).toBeDefined();
   });
 
-  it("throws if bookmark not found", async () => {
-    await expect(service.addToList("nonexistent")).rejects.toThrow("Bookmark not found");
+  it('removes an entry from the reading list', async () => {
+    const { service } = buildService();
+    const entry = await service.add(sampleBookmark.id, sampleBookmark.url, sampleBookmark.title);
+    await service.remove(entry.id);
+    const all = await service.getAll();
+    expect(all).toHaveLength(0);
   });
 
-  it("removes a bookmark from the reading list", async () => {
-    await service.addToList("bm1");
-    await service.removeFromList("bm1");
-    const list = await service.getList();
-    expect(list).toHaveLength(0);
-  });
-
-  it("marks a bookmark as read", async () => {
-    await service.addToList("bm1");
-    const entry = await service.markAsRead("bm1");
-    expect(entry.readAt).toBeDefined();
-  });
-
-  it("throws when marking untracked bookmark as read", async () => {
-    await expect(service.markAsRead("bm1")).rejects.toThrow("not in reading list");
-  });
-
-  it("returns only unread entries", async () => {
-    await service.addToList("bm1");
+  it('returns only unread entries', async () => {
+    const { service } = buildService();
+    const e1 = await service.add('id1', 'https://a.com', 'A');
+    await service.add('id2', 'https://b.com', 'B');
+    await service.markAsRead(e1.id);
     const unread = await service.getUnread();
     expect(unread).toHaveLength(1);
-    await service.markAsRead("bm1");
-    const unreadAfter = await service.getUnread();
-    expect(unreadAfter).toHaveLength(0);
+    expect(unread[0].bookmarkId).toBe('id2');
   });
 
-  it("returns full list", async () => {
-    await service.addToList("bm1");
-    const list = await service.getList();
-    expect(list).toHaveLength(1);
+  it('returns null when marking non-existent entry as read', async () => {
+    const { service } = buildService();
+    const result = await service.markAsRead('nonexistent');
+    expect(result).toBeNull();
   });
 });
