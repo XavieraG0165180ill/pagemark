@@ -1,4 +1,5 @@
 export interface BookmarkNote {
+  id: string;
   bookmarkId: string;
   content: string;
   createdAt: string;
@@ -6,8 +7,8 @@ export interface BookmarkNote {
 }
 
 export interface BookmarkNoteStore {
-  get(bookmarkId: string): BookmarkNote | undefined;
-  set(bookmarkId: string, note: BookmarkNote): void;
+  getByBookmarkId(bookmarkId: string): BookmarkNote | undefined;
+  set(note: BookmarkNote): void;
   delete(bookmarkId: string): boolean;
   getAll(): BookmarkNote[];
 }
@@ -16,11 +17,11 @@ export function createInMemoryBookmarkNoteStore(): BookmarkNoteStore {
   const notes = new Map<string, BookmarkNote>();
 
   return {
-    get(bookmarkId) {
+    getByBookmarkId(bookmarkId) {
       return notes.get(bookmarkId);
     },
-    set(bookmarkId, note) {
-      notes.set(bookmarkId, note);
+    set(note) {
+      notes.set(note.bookmarkId, note);
     },
     delete(bookmarkId) {
       return notes.delete(bookmarkId);
@@ -32,38 +33,36 @@ export function createInMemoryBookmarkNoteStore(): BookmarkNoteStore {
 }
 
 export interface BookmarkNoteService {
-  getNote(bookmarkId: string): BookmarkNote | undefined;
-  upsertNote(bookmarkId: string, content: string): BookmarkNote;
-  deleteNote(bookmarkId: string): boolean;
-  getAllNotes(): BookmarkNote[];
+  upsert(bookmarkId: string, content: string): BookmarkNote;
+  get(bookmarkId: string): BookmarkNote | undefined;
+  delete(bookmarkId: string): boolean;
+  getAll(): BookmarkNote[];
 }
 
 export function createBookmarkNoteService(
   store: BookmarkNoteStore
 ): BookmarkNoteService {
   return {
-    getNote(bookmarkId) {
-      return store.get(bookmarkId);
-    },
-
-    upsertNote(bookmarkId, content) {
+    upsert(bookmarkId, content) {
+      const existing = store.getByBookmarkId(bookmarkId);
       const now = new Date().toISOString();
-      const existing = store.get(bookmarkId);
       const note: BookmarkNote = {
+        id: existing?.id ?? `note-${bookmarkId}`,
         bookmarkId,
         content,
         createdAt: existing?.createdAt ?? now,
         updatedAt: now,
       };
-      store.set(bookmarkId, note);
+      store.set(note);
       return note;
     },
-
-    deleteNote(bookmarkId) {
+    get(bookmarkId) {
+      return store.getByBookmarkId(bookmarkId);
+    },
+    delete(bookmarkId) {
       return store.delete(bookmarkId);
     },
-
-    getAllNotes() {
+    getAll() {
       return store.getAll();
     },
   };
