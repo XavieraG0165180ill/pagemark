@@ -12,28 +12,11 @@ function buildService(): BookmarkNoteService {
 describe("bookmarkNoteService", () => {
   it("creates a note for a bookmark", () => {
     const service = buildService();
-    const note = service.upsert("bm-1", "This is a great resource.");
+    const note = service.upsert("bm-1", "This is a great article.");
     expect(note.bookmarkId).toBe("bm-1");
-    expect(note.content).toBe("This is a great resource.");
+    expect(note.content).toBe("This is a great article.");
     expect(note.createdAt).toBeDefined();
     expect(note.updatedAt).toBeDefined();
-  });
-
-  it("updates an existing note without changing createdAt", () => {
-    const service = buildService();
-    const first = service.upsert("bm-1", "Initial note");
-    const second = service.upsert("bm-1", "Updated note");
-    expect(second.content).toBe("Updated note");
-    expect(second.createdAt).toBe(first.createdAt);
-    expect(second.id).toBe(first.id);
-  });
-
-  it("retrieves a note by bookmarkId", () => {
-    const service = buildService();
-    service.upsert("bm-2", "Some note");
-    const note = service.get("bm-2");
-    expect(note).toBeDefined();
-    expect(note?.content).toBe("Some note");
   });
 
   it("returns undefined for a bookmark with no note", () => {
@@ -41,27 +24,44 @@ describe("bookmarkNoteService", () => {
     expect(service.get("bm-999")).toBeUndefined();
   });
 
+  it("retrieves an existing note", () => {
+    const service = buildService();
+    service.upsert("bm-2", "Remember to share this.");
+    const note = service.get("bm-2");
+    expect(note).toBeDefined();
+    expect(note?.content).toBe("Remember to share this.");
+  });
+
+  it("updates content while preserving createdAt", () => {
+    const service = buildService();
+    const original = service.upsert("bm-3", "First draft.");
+    const updated = service.upsert("bm-3", "Revised note.");
+    expect(updated.content).toBe("Revised note.");
+    expect(updated.createdAt).toBe(original.createdAt);
+    expect(updated.id).toBe(original.id);
+  });
+
   it("deletes a note", () => {
     const service = buildService();
-    service.upsert("bm-3", "To be deleted");
-    const result = service.delete("bm-3");
+    service.upsert("bm-4", "To be deleted.");
+    const result = service.delete("bm-4");
     expect(result).toBe(true);
-    expect(service.get("bm-3")).toBeUndefined();
+    expect(service.get("bm-4")).toBeUndefined();
   });
 
   it("returns false when deleting a non-existent note", () => {
     const service = buildService();
-    expect(service.delete("bm-missing")).toBe(false);
+    expect(service.delete("bm-none")).toBe(false);
   });
 
-  it("returns all notes", () => {
+  it("lists all notes", () => {
     const service = buildService();
-    service.upsert("bm-1", "Note one");
-    service.upsert("bm-2", "Note two");
+    service.upsert("bm-5", "Note A");
+    service.upsert("bm-6", "Note B");
     const all = service.getAll();
     expect(all).toHaveLength(2);
-    expect(all.map((n) => n.bookmarkId)).toEqual(
-      expect.arrayContaining(["bm-1", "bm-2"])
-    );
+    const ids = all.map((n) => n.bookmarkId);
+    expect(ids).toContain("bm-5");
+    expect(ids).toContain("bm-6");
   });
 });
