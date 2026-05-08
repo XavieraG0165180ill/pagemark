@@ -1,3 +1,4 @@
+import { describe, it, expect, beforeEach } from "vitest";
 import {
   createInMemoryBookmarkNoteStore,
   createBookmarkNoteService,
@@ -10,58 +11,60 @@ function buildService(): BookmarkNoteService {
 }
 
 describe("bookmarkNoteService", () => {
-  it("creates a note for a bookmark", () => {
-    const service = buildService();
-    const note = service.upsert("bm-1", "This is a great article.");
-    expect(note.bookmarkId).toBe("bm-1");
-    expect(note.content).toBe("This is a great article.");
-    expect(note.createdAt).toBeDefined();
-    expect(note.updatedAt).toBeDefined();
+  let service: BookmarkNoteService;
+
+  beforeEach(() => {
+    service = buildService();
   });
 
-  it("returns undefined for a bookmark with no note", () => {
-    const service = buildService();
-    expect(service.get("bm-999")).toBeUndefined();
+  it("returns undefined for a note that does not exist", () => {
+    expect(service.getNote("bm-1")).toBeUndefined();
+  });
+
+  it("creates a new note for a bookmark", () => {
+    const note = service.upsertNote("bm-1", "interesting article");
+    expect(note.bookmarkId).toBe("bm-1");
+    expect(note.content).toBe("interesting article");
+    expect(note.createdAt).toBeTruthy();
+    expect(note.updatedAt).toBeTruthy();
   });
 
   it("retrieves an existing note", () => {
-    const service = buildService();
-    service.upsert("bm-2", "Remember to share this.");
-    const note = service.get("bm-2");
+    service.upsertNote("bm-1", "my note");
+    const note = service.getNote("bm-1");
     expect(note).toBeDefined();
-    expect(note?.content).toBe("Remember to share this.");
+    expect(note?.content).toBe("my note");
   });
 
-  it("updates content while preserving createdAt", () => {
-    const service = buildService();
-    const original = service.upsert("bm-3", "First draft.");
-    const updated = service.upsert("bm-3", "Revised note.");
-    expect(updated.content).toBe("Revised note.");
-    expect(updated.createdAt).toBe(original.createdAt);
-    expect(updated.id).toBe(original.id);
+  it("updates an existing note and preserves createdAt", async () => {
+    const first = service.upsertNote("bm-1", "original");
+    await new Promise((r) => setTimeout(r, 5));
+    const second = service.upsertNote("bm-1", "updated");
+    expect(second.content).toBe("updated");
+    expect(second.createdAt).toBe(first.createdAt);
+    expect(second.updatedAt).not.toBe(first.updatedAt);
   });
 
-  it("deletes a note", () => {
-    const service = buildService();
-    service.upsert("bm-4", "To be deleted.");
-    const result = service.delete("bm-4");
+  it("deletes a note and returns true", () => {
+    service.upsertNote("bm-1", "to delete");
+    const result = service.deleteNote("bm-1");
     expect(result).toBe(true);
-    expect(service.get("bm-4")).toBeUndefined();
+    expect(service.getNote("bm-1")).toBeUndefined();
   });
 
   it("returns false when deleting a non-existent note", () => {
-    const service = buildService();
-    expect(service.delete("bm-none")).toBe(false);
+    expect(service.deleteNote("bm-999")).toBe(false);
   });
 
-  it("lists all notes", () => {
-    const service = buildService();
-    service.upsert("bm-5", "Note A");
-    service.upsert("bm-6", "Note B");
-    const all = service.getAll();
+  it("returns all notes", () => {
+    service.upsertNote("bm-1", "note one");
+    service.upsertNote("bm-2", "note two");
+    const all = service.getAllNotes();
     expect(all).toHaveLength(2);
-    const ids = all.map((n) => n.bookmarkId);
-    expect(ids).toContain("bm-5");
-    expect(ids).toContain("bm-6");
+    expect(all.map((n) => n.bookmarkId).sort()).toEqual(["bm-1", "bm-2"]);
+  });
+
+  it("returns empty array when no notes exist", () => {
+    expect(service.getAllNotes()).toEqual([]);
   });
 });
