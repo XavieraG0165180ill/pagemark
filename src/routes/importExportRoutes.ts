@@ -56,18 +56,25 @@ export function createImportExportRouter(
       return res.status(400).json({ error: "Missing html field" });
     }
     const partials = importFromNetscapeHtml(html);
+    if (partials.length === 0) {
+      return res.status(400).json({ error: "No bookmarks found in the provided HTML" });
+    }
     let imported = 0;
     const errors: string[] = [];
     for (const p of partials) {
       try {
-        const bookmark = createBookmark({ url: p.url!, title: p.title!, tags: p.tags ?? [] });
+        if (!p.url || !p.title) {
+          errors.push(`Skipping entry with missing url or title: ${p.url ?? "(no url)"}`);
+          continue;
+        }
+        const bookmark = createBookmark({ url: p.url, title: p.title, tags: p.tags ?? [] });
         await bookmarkStore.add(bookmark);
         imported++;
       } catch (e: unknown) {
         errors.push(e instanceof Error ? e.message : "Unknown error");
       }
     }
-    res.json({ imported, skipped: 0, errors });
+    res.json({ imported, skipped: partials.length - imported - errors.length, errors });
   });
 
   return router;
